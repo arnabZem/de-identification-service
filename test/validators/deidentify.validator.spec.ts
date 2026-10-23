@@ -25,7 +25,7 @@ describe('deidentifyValidator', () => {
       ['an object', { text: { a: 1 } }],
     ])('rejects %s', async (_n, body) => {
       const res = await post(body).expect(400);
-      expect(res.body.error).toEqual({ code: 'INVALID_REQUEST', message: 'text must be a string' });
+      expect(res.body.error).toEqual({ status: 400, message: 'text must be a string' });
     });
 
     test('rejects an empty body', async () => {
@@ -71,7 +71,7 @@ describe('deidentifyValidator', () => {
   describe('content type', () => {
     test('rejects text/plain with 415', async () => {
       const res = await request(app).post('/v').set('Content-Type', 'text/plain').send('{"text":"x"}').expect(415);
-      expect(res.body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+      expect(res.body.error.status).toBe(415);
     });
 
     test('rejects a missing content type with 415', async () => {

@@ -1,5 +1,5 @@
 import express, { Express } from 'express';
-import { config } from './config/env';
+import { config } from './config/config';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 import routes from './routes';
