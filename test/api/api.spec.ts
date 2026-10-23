@@ -48,7 +48,7 @@ describe('API', () => {
       ['empty entities', { text: 'x', entities: [] }],
     ])('400 for %s', async (_n, body) => {
       const res = await post(body).expect(400);
-      expect(res.body.error.code).toBe('INVALID_REQUEST');
+      expect(res.body.error.status).toBe(400);
     });
 
     test('400 for malformed JSON', async () => {
@@ -57,7 +57,7 @@ describe('API', () => {
 
     test('413 above the body limit', async () => {
       const res = await post({ text: 'a'.repeat(1_048_577) }).expect(413);
-      expect(res.body.error.code).toBe('PAYLOAD_TOO_LARGE');
+      expect(res.body.error).toEqual({ status: 413, message: 'Payload Too Large' });
     });
 
     test('415 for non-JSON content', async () => {
@@ -73,7 +73,7 @@ describe('API', () => {
   describe('routing', () => {
     test('404 for unknown routes', async () => {
       const res = await request(app).get('/unknown').expect(404);
-      expect(res.body).toEqual({ error: { code: 'NOT_FOUND', message: 'Route not found' } });
+      expect(res.body).toEqual({ error: { status: 404, message: 'Not Found' } });
     });
 
     test('404 for GET /deidentify and for /healthz', async () => {

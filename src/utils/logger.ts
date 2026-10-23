@@ -1,4 +1,4 @@
-import { config, LogLevel } from '../config/env';
+import { config, LogLevel } from '../config/config';
 
 type Fields = Record<string, string | number | undefined>;
 

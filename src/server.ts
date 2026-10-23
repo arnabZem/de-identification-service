@@ -1,5 +1,5 @@
 import { createApp } from './app';
-import { config } from './config/env';
+import { config } from './config/config';
 import { logger } from './utils/logger';
 
 const server = createApp().listen(config.port, (err?: Error) => {
@@ -14,7 +14,7 @@ const server = createApp().listen(config.port, (err?: Error) => {
 function shutdown(signal: string): void {
   logger.info('Shutting down', { signal });
   server.close(() => process.exit(0));
-  setTimeout(() => process.exit(1), 10_000).unref();
+  setTimeout(() => process.exit(1), config.shutdownTimeoutMs).unref();
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
