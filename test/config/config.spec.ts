@@ -31,6 +31,12 @@ describe('config', () => {
     });
   });
 
+  describe('empty values', () => {
+    test('are treated as unset', () => {
+      expect(load({ PORT: '', MAX_BODY_BYTES: '', SHUTDOWN_TIMEOUT_MS: '' })).toMatchObject({ port: 3000, maxBodyBytes: 1_048_576, shutdownTimeoutMs: 10_000 });
+    });
+  });
+
   describe('custom rules file', () => {
     test('is unset by default and when empty', () => {
       expect(load().customRulesFile).toBeUndefined();
@@ -49,7 +55,12 @@ describe('config', () => {
       ['PORT', '-1'],
       ['PORT', '3000.5'],
       ['PORT', '70000'],
-      ['PORT', ''],
+      ['PORT', ' 80'],
+      ['PORT', '1e3'],
+      ['PORT', '0x10'],
+      ['PORT', '80.0'],
+      ['MAX_BODY_BYTES', '0b11'],
+      ['SHUTDOWN_TIMEOUT_MS', '9007199254740993'],
       ['MAX_BODY_BYTES', 'big'],
       ['MAX_BODY_BYTES', '0'],
       ['SHUTDOWN_TIMEOUT_MS', 'soon'],

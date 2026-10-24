@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { createApp } from '../../src/app';
+import { BUDGET_MS } from '../rules/helpers';
 
 const app = createApp();
 const post = (body: object) => request(app).post('/deidentify').send(body);
@@ -162,6 +163,19 @@ describe('API', () => {
       const res = await batch({ texts: ['SECRET-VALUE', 5] }).expect(400);
       expect(JSON.stringify(res.body)).not.toContain('SECRET-VALUE');
     });
+  });
+
+  describe('performance', () => {
+    test.each([
+      ['100k valid entities', '/deidentify', { text: 'x', entities: Array(100_000).fill('EMAIL') }, 200],
+      ['100k invalid entities', '/deidentify', { text: 'x', entities: Array(100_000).fill('XXXXX') }, 400],
+      ['100k batch texts', '/deidentify/batch', { texts: Array(100_000).fill('') }, 200],
+      ['100k invalid batch texts', '/deidentify/batch', { texts: Array(100_000).fill(0) }, 400],
+    ])('validates %s in linear time', async (_n, path, body, status) => {
+      const start = Date.now();
+      await request(app).post(path).send(body).expect(status);
+      expect(Date.now() - start).toBeLessThan(BUDGET_MS);
+    }, 120_000);
   });
 
   describe('routing', () => {

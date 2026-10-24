@@ -102,3 +102,21 @@ describe('creditCardRule', () => {
     });
   });
 });
+
+describe('creditCardRule: Unicode separators', () => {
+  test.each([
+    ['no-break spaces', '4111\u00a01111\u00a01111\u00a01111'],
+    ['en dashes', '4111\u20131111\u20131111\u20131111'],
+    ['Amex with no-break spaces', '3782\u00a0822463\u00a010005'],
+  ])('%s', (_n, text) => {
+    expect(found(creditCardRule, `card ${text}`)).toEqual([text]);
+  });
+
+  test('a CVV after a no-break-spaced card is still split off', () => {
+    expect(found(creditCardRule, '4111\u00a01111\u00a01111\u00a01111\u00a0123')).toEqual(['4111\u00a01111\u00a01111\u00a01111']);
+  });
+
+  test('separators must still be consistent', () => {
+    expect(found(creditCardRule, '4111\u00a01111 1111\u00a01111')).toEqual([]);
+  });
+});

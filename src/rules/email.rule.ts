@@ -2,11 +2,11 @@ import { Rule } from '../models/detection';
 import { scan } from './scan';
 
 const W = '\\p{L}\\p{M}\\p{N}';
-// The lookbehind keeps matching linear; leading punctuation is trimmed in find().
+// The lookbehind keeps matching linear; leading punctuation is trimmed by the accept callback below.
 const EMAIL = new RegExp(`(?<![${W}._%+-])[${W}._%+-]+@(?:[${W}-]+\\.)+\\p{L}[${W}-]*\\p{L}`, 'gu');
 const ALNUM = /[\p{L}\p{M}\p{N}]/u;
 
-/** Unicode-aware EMAIL rule: `local@domain.tld` with a dotted domain and a TLD of 2+ letters. */
+/** Unicode-aware EMAIL rule: `local@domain.tld` with a dotted domain and a TLD that starts and ends with a letter. */
 export const emailRule: Rule = {
   entity: 'EMAIL',
   find: (text) =>

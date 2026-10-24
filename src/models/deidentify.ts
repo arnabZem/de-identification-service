@@ -1,7 +1,7 @@
 import { BuiltinEntity, CustomEntity, EntityType } from './entity';
 
 /** Replacements per entity type; only types with at least one replacement are present. */
-export type EntityCounts = Partial<Record<BuiltinEntity, number>> & Record<CustomEntity, number>;
+type EntityCounts = Partial<Record<BuiltinEntity, number>> & Record<CustomEntity, number>;
 
 export interface DeidentifyRequest {
   text: string;

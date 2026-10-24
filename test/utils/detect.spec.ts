@@ -40,9 +40,38 @@ describe('detect', () => {
       expect(spans).toEqual<Span[]>([{ start: 0, end: 10, entity: 'CREDIT_CARD' }]);
     });
 
-    test('partially overlapping spans: only the winner is kept', () => {
+    test('partially overlapping spans: the winner is kept whole and the loser keeps its uncovered part', () => {
       const spans = detect('x'.repeat(30), [rule('PHONE', [0, 10]), rule('EMAIL', [8, 22])]);
-      expect(spans).toEqual<Span[]>([{ start: 8, end: 22, entity: 'EMAIL' }]);
+      expect(spans).toEqual<Span[]>([
+        { start: 0, end: 8, entity: 'PHONE' },
+        { start: 8, end: 22, entity: 'EMAIL' },
+      ]);
+    });
+
+    test('the uncovered part is trimmed to its letters and digits', () => {
+      const spans = detect('xx -xxxxxxxxx', [rule('PHONE', [0, 6]), rule('EMAIL', [4, 13])]);
+      expect(spans).toEqual<Span[]>([
+        { start: 0, end: 2, entity: 'PHONE' },
+        { start: 4, end: 13, entity: 'EMAIL' },
+      ]);
+    });
+
+    test('an uncovered part with no letters or digits is left as is', () => {
+      const spans = detect(' - xxxxxxxx', [rule('PHONE', [0, 5]), rule('EMAIL', [3, 11])]);
+      expect(spans).toEqual<Span[]>([{ start: 3, end: 11, entity: 'EMAIL' }]);
+    });
+
+    test('trimming keeps astral letters and combining marks inside the span', () => {
+      const text = 'x\u0301\u{1D49C} xxxxxxxx';
+      const spans = detect(text, [rule('PHONE', [0, 6]), rule('EMAIL', [5, text.length])]);
+      expect(spans[0]).toEqual<Span>({ start: 0, end: 4, entity: 'PHONE' });
+    });
+
+    test('never redacts less than dropping the loser would', () => {
+      const text = 'x'.repeat(40);
+      const rules = [rule('PHONE', [0, 12]), rule('EMAIL', [10, 30]), rule('SSN', [25, 36]), rule('IP_ADDRESS', [34, 40])];
+      const covered = new Set(detect(text, rules).flatMap((s) => Array.from({ length: s.end - s.start }, (_, i) => s.start + i)));
+      for (let i = 0; i < 40; i++) expect(covered.has(i)).toBe(true);
     });
 
     test('adjacent spans are both kept', () => {

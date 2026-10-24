@@ -100,3 +100,19 @@ describe('dobRule', () => {
     });
   });
 });
+
+describe('dobRule: Unicode separators and glued labels', () => {
+  test.each([
+    ['no-break space after label', 'DOB:\u00a01990-05-12', '1990-05-12'],
+    ['no-break spaces in label', 'Date\u00a0of\u00a0birth: 1990-05-12', '1990-05-12'],
+    ['en dashes in date', 'DOB: 1990\u201305\u201312', '1990\u201305\u201312'],
+    ['no-break spaces in month-name date', 'DOB: May\u00a012,\u00a01990', 'May\u00a012,\u00a01990'],
+    ['label glued to a preceding digit', 'id 12DOB: 1990-05-12', '1990-05-12'],
+  ])('%s', (_n, text, date) => {
+    expect(found(dobRule, text)).toEqual([date]);
+  });
+
+  test('a label inside a word is still ignored', () => {
+    expect(found(dobRule, 'ADOBE: 1990-05-12')).toEqual([]);
+  });
+});
