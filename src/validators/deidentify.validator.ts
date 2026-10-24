@@ -19,11 +19,19 @@ const validate: RequestHandler = (req, _res, next) => {
 
 const ENTITY_MESSAGE = `entities must only contain: ${ENTITY_TYPES.join(', ')}`;
 
-/** Validation chain for `POST /deidentify`. */
-export const deidentifyValidator = [
-  requireJson,
-  body('text').isString().withMessage('text must be a string'),
+const entities = [
   body('entities').optional().isArray({ min: 1 }).withMessage('entities must be a non-empty array'),
   body('entities.*').isString().withMessage(ENTITY_MESSAGE).isIn(ENTITY_TYPES).withMessage(ENTITY_MESSAGE),
+];
+
+/** Validation chain for `POST /deidentify`. */
+export const deidentifyValidator = [requireJson, body('text').isString().withMessage('text must be a string'), ...entities, validate];
+
+/** Validation chain for `POST /deidentify/batch`. */
+export const batchValidator = [
+  requireJson,
+  body('texts').isArray({ min: 1 }).withMessage('texts must be a non-empty array'),
+  body('texts.*').isString().withMessage('texts must only contain strings'),
+  ...entities,
   validate,
 ];

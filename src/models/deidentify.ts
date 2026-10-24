@@ -10,6 +10,16 @@ export interface DeidentifyResponse {
   entitiesDetected: Partial<Record<EntityType, number>>;
 }
 
+export interface DeidentifyBatchRequest {
+  texts: string[];
+  entities?: EntityType[];
+}
+
+/** One result per input text, in input order. */
+export interface DeidentifyBatchResponse {
+  results: DeidentifyResponse[];
+}
+
 /** Output of `replace`: rewritten text and replacements made per entity type. */
 export interface ReplaceResult {
   text: string;

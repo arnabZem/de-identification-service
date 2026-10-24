@@ -20,8 +20,8 @@ describe('DeidentifyService', () => {
     test('handles several entities in multi-line text', () => {
       const input = 'Name: Jane\r\nEmail: jane@x.com\r\nPhone: (212) 555-0199\r\nSSN: 123-45-6789\r\nCard: 5500 0000 0000 0004\r\nIP: 10.0.0.1';
       expect(service.run(input)).toEqual({
-        text: 'Name: Jane\r\nEmail: [EMAIL]\r\nPhone: [PHONE]\r\nSSN: [SSN]\r\nCard: [CREDIT_CARD]\r\nIP: [IP_ADDRESS]',
-        counts: { EMAIL: 1, PHONE: 1, SSN: 1, CREDIT_CARD: 1, IP_ADDRESS: 1 },
+        text: 'Name: [NAME]\r\nEmail: [EMAIL]\r\nPhone: [PHONE]\r\nSSN: [SSN]\r\nCard: [CREDIT_CARD]\r\nIP: [IP_ADDRESS]',
+        counts: { NAME: 1, EMAIL: 1, PHONE: 1, SSN: 1, CREDIT_CARD: 1, IP_ADDRESS: 1 },
       });
     });
 

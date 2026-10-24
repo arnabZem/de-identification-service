@@ -1,5 +1,5 @@
 /** Supported entity types, ordered by overlap priority (highest first). */
-export const ENTITY_TYPES = ['CREDIT_CARD', 'SSN', 'DATE_OF_BIRTH', 'IP_ADDRESS', 'EMAIL', 'PHONE'] as const;
+export const ENTITY_TYPES = ['CREDIT_CARD', 'SSN', 'DATE_OF_BIRTH', 'IP_ADDRESS', 'EMAIL', 'PHONE', 'NAME'] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
 

@@ -4,7 +4,7 @@ A small Node.js / TypeScript / Express service that finds common PII in free-for
 
 Text is processed in memory only. Nothing is sent to external services, stored, or logged.
 
-> **Not an anonymization guarantee.** Names, street addresses and any PII outside the six supported types are **not** detected. Rules favor recall (a missed value is worse than a harmless over-redaction), so false positives do occur. See [Known limitations](#known-limitations).
+> **Not an anonymization guarantee.** Names are detected only after an explicit label (`Patient Name: John Doe`); unlabeled names (`Patient John Doe`), street addresses and any other PII are **not** detected. Rules favor recall (a missed value is worse than a harmless over-redaction), so false positives do occur. See [Known limitations](#known-limitations).
 
 ## Quick start
 
@@ -38,7 +38,7 @@ All settings are environment variables, defined in `src/config/config.ts`. Inval
 | Field | Type | Notes |
 |---|---|---|
 | `text` | string, required | Empty and whitespace-only text are returned unchanged |
-| `entities` | string[], optional | Subset of `EMAIL`, `PHONE`, `SSN`, `DATE_OF_BIRTH`, `CREDIT_CARD`, `IP_ADDRESS`. Omitted = all six. Must be non-empty if present. Duplicates are ignored. |
+| `entities` | string[], optional | Subset of `EMAIL`, `PHONE`, `SSN`, `DATE_OF_BIRTH`, `CREDIT_CARD`, `IP_ADDRESS`, `NAME`. Omitted = all. Must be non-empty if present. Duplicates are ignored. |
 
 ```bash
 curl -s localhost:3000/deidentify -H 'content-type: application/json' -d '{
@@ -65,6 +65,16 @@ curl -s localhost:3000/deidentify -H 'content-type: application/json' \
 - Offsets and matched values are never returned.
 - Types you do not select are left untouched, even where they overlap a selected type (see [Design decisions](#design-decisions)).
 
+### `POST /deidentify/batch`
+
+Same rules for many texts in one request. `texts` is a non-empty array of strings; `entities` works as above and applies to every text. Results are returned in input order, each in the single-text response shape. The whole batch shares the `MAX_BODY_BYTES` limit.
+
+```bash
+curl -s localhost:3000/deidentify/batch -H 'content-type: application/json'   -d '{"texts":["Patient Name: Jane Roe","call +1-415-555-0134"]}'
+# {"results":[{"deidentifiedText":"Patient Name: [NAME]","entitiesDetected":{"NAME":1}},
+#             {"deidentifiedText":"call [PHONE]","entitiesDetected":{"PHONE":1}}]}
+```
+
 ### `GET /health`
 
 Returns `200 {"status":"ok"}`.
@@ -75,7 +85,7 @@ All errors share one shape: `{ "error": { "status": <number>, "message": <string
 
 | Status | When |
 |---|---|
-| 400 | Malformed JSON; `text` missing or not a string; `entities` not a non-empty array of known types |
+| 400 | Malformed JSON; `text` missing or not a string; `texts` (batch) not a non-empty array of strings; `entities` not a non-empty array of known types |
 | 404 | Unknown route |
 | 413 | Body larger than `MAX_BODY_BYTES` |
 | 415 | `Content-Type` is not JSON |
@@ -95,6 +105,7 @@ Rules never match across line breaks, and none match inside a longer run of digi
 | `DATE_OF_BIRTH` | A date after a label (`DOB`, `D.O.B.`, `date of birth`, `birth date`, `birthdate`; case-insensitive; optional `:`, `-` or `is`) on the same line. Only the date is replaced; the label stays. Dates: `1990-05-12`, `1990/05/12`, `05/12/1990`, `12/05/1990`, `12.05.1990`, `May 12, 1990`, `12 May 1990`. | Dates without a label, 2-digit years, impossible dates (`1990-02-31`), years outside 1900-2099, ordinals (`May 12th`) |
 | `CREDIT_CARD` | 13-19 digits passing the Luhn check, as bare digits, `4-4-4-4` (plus an optional 1-3 digit tail), `4-6-5` or `4-6-4`, with one consistent space or hyphen separator | Luhn failures, other groupings, 20+ digit runs |
 | `IP_ADDRESS` | IPv4 dotted quads, octets 0-255, no leading zeros. Private and loopback addresses are included. | IPv6, `256.1.1.1`, `01.2.3.4`, `1.2.3.4.5` |
+| `NAME` | 1-5 capitalized words after a label (`Name`, `Patient`, or `Patient`/`Full`/`First`/`Middle`/`Last`/`Legal`/`Maiden` + `Name`; case-insensitive) and a colon, on the same line. Only the name is replaced. Handles initials (`John Q. Public`), `Doe, John`, titles, apostrophes, hyphens and Unicode. Stops at a lowercase word or the next label (`Name: John Doe, DOB: ...`). | Unlabeled names (`Patient John Doe`), labels without a colon, lowercase names |
 
 ## Known limitations
 
@@ -110,6 +121,7 @@ Per rule
 - **DATE_OF_BIRTH:** day/month order is not interpreted; a numeric date is accepted if it is a real date in either order. Labels in other languages are not recognized.
 - **CREDIT_CARD:** no issuer (IIN) check. Valid test numbers (`4111 1111 1111 1111`) are redacted. A grouped card followed directly by a CVV or expiry (`4111 1111 1111 1111 123`) is redacted as the card only; the trailing digits remain.
 - **IP_ADDRESS:** version strings that look like IPv4 (`1.2.3.4`) are redacted.
+- **NAME:** lowercase names (`Name: john doe`) and lowercase particles (`Ludwig van Beethoven` redacts only `Ludwig`) are missed, as are names past the fifth word. Any capitalized value after a matching label is redacted (`Company Name: Acme`).
 - **Overlaps:** when two matches partially overlap, only the longer one is redacted and the rest of the shorter one can remain.
 
 ## Project structure
@@ -149,8 +161,6 @@ Adding an entity: add it to `ENTITY_TYPES` (`models/entity.ts`, order = overlap 
 
 ## Potential improvements
 
-- Context-based names (`Patient Name: ...`), reusing the label mechanism from `DATE_OF_BIRTH`.
-- Batch endpoint for many records per request.
 - Configurable rules. Needs a safe-regex check because user-supplied patterns can cause catastrophic backtracking.
 - IPv6, more national ID and phone formats, labels in other languages.
 - Per-person tokens (`[EMAIL_1]`) or reversible tokenization, by replacing `replace`.
