@@ -1,4 +1,7 @@
-import { EntityType } from './entity';
+import { BuiltinEntity, CustomEntity, EntityType } from './entity';
+
+/** Replacements per entity type; only types with at least one replacement are present. */
+export type EntityCounts = Partial<Record<BuiltinEntity, number>> & Record<CustomEntity, number>;
 
 export interface DeidentifyRequest {
   text: string;
@@ -7,7 +10,7 @@ export interface DeidentifyRequest {
 
 export interface DeidentifyResponse {
   deidentifiedText: string;
-  entitiesDetected: Partial<Record<EntityType, number>>;
+  entitiesDetected: EntityCounts;
 }
 
 export interface DeidentifyBatchRequest {
@@ -23,5 +26,5 @@ export interface DeidentifyBatchResponse {
 /** Output of `replace`: rewritten text and replacements made per entity type. */
 export interface ReplaceResult {
   text: string;
-  counts: Partial<Record<EntityType, number>>;
+  counts: EntityCounts;
 }

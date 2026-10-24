@@ -1,0 +1,4 @@
+[
+  { "entity": "MRN", "pattern": "MRN[: ]*(?<value>\\d{6,10})", "flags": "i" },
+  { "entity": "EMPLOYEE_ID", "pattern": "\\bE\\d{5}\\b" }
+]

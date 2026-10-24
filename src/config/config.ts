@@ -23,4 +23,6 @@ export const config = {
   maxBodyBytes: int('MAX_BODY_BYTES', 1_048_576),
   shutdownTimeoutMs: int('SHUTDOWN_TIMEOUT_MS', 10_000),
   logLevel: oneOf('LOG_LEVEL', LOG_LEVELS, 'info'),
+  /** Optional path to a JSON file of custom rules (see `rules/custom.ts`). */
+  customRulesFile: process.env.CUSTOM_RULES_FILE || undefined,
 };

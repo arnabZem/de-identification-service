@@ -31,6 +31,17 @@ describe('config', () => {
     });
   });
 
+  describe('custom rules file', () => {
+    test('is unset by default and when empty', () => {
+      expect(load().customRulesFile).toBeUndefined();
+      expect(load({ CUSTOM_RULES_FILE: '' }).customRulesFile).toBeUndefined();
+    });
+
+    test('reads the path from CUSTOM_RULES_FILE', () => {
+      expect(load({ CUSTOM_RULES_FILE: '/etc/rules.json' }).customRulesFile).toBe('/etc/rules.json');
+    });
+  });
+
   describe('invalid values fail fast', () => {
     test.each([
       ['PORT', 'abc'],

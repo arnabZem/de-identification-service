@@ -20,7 +20,7 @@ npm run build && npm start   # compiled build
 
 ### Configuration
 
-All settings are environment variables, defined in `src/config/config.ts`. Invalid values stop the service at startup.
+All settings are environment variables, defined in `src/config/config.ts`. Invalid values stop the service at startup. `npm run dev` and `npm start` also read a `.env` file if present (Node's built-in `--env-file-if-exists`; real environment variables win): `cp .env.example .env`. The example enables the sample rules in `src/rules/custom-rules.json`. Tests ignore `.env`.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -28,6 +28,7 @@ All settings are environment variables, defined in `src/config/config.ts`. Inval
 | `MAX_BODY_BYTES` | `1048576` | Max request body; larger requests get `413` |
 | `SHUTDOWN_TIMEOUT_MS` | `10000` | Max wait for in-flight requests on `SIGTERM`/`SIGINT` |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
+| `CUSTOM_RULES_FILE` | unset | Path to a JSON file of [custom rules](#custom-rules) |
 
 ## API
 
@@ -107,6 +108,25 @@ Rules never match across line breaks, and none match inside a longer run of digi
 | `IP_ADDRESS` | IPv4 dotted quads, octets 0-255, no leading zeros. Private and loopback addresses are included. | IPv6, `256.1.1.1`, `01.2.3.4`, `1.2.3.4.5` |
 | `NAME` | 1-5 capitalized words after a label (`Name`, `Patient`, or `Patient`/`Full`/`First`/`Middle`/`Last`/`Legal`/`Maiden` + `Name`; case-insensitive) and a colon, on the same line. Only the name is replaced. Handles initials (`John Q. Public`), `Doe, John`, titles, apostrophes, hyphens and Unicode. Stops at a lowercase word or the next label (`Name: John Doe, DOB: ...`). | Unlabeled names (`Patient John Doe`), labels without a colon, lowercase names |
 
+### Custom rules
+
+Extra entity types can be added without code changes. Set `CUSTOM_RULES_FILE` to a JSON array and restart:
+
+```json
+[
+  { "entity": "MRN", "pattern": "MRN[: ]*(?<value>\\d{6,10})", "flags": "i" },
+  { "entity": "EMPLOYEE_ID", "pattern": "\\bE\\d{5}\\b" }
+]
+```
+
+- `entity`: `UPPER_SNAKE_CASE`, unique, and not a built-in name. It becomes the placeholder (`[MRN]`) and a valid value for `entities`.
+- `pattern`: a JavaScript regular expression. If it has a named group `value` and that group matched, only the group is redacted; otherwise the whole match is. Empty matches are ignored.
+- `flags` (optional): any JavaScript flags, such as `i` or `u`. `g`, `d` and `y` are managed by the service.
+- Custom entities rank below all built-ins on equal-length overlaps, in file order. The longest span still wins.
+- An invalid file, entry or pattern stops the service at startup.
+
+> **Patterns are trusted configuration.** They are not checked for catastrophic backtracking, and nothing stops them matching across line breaks. A slow pattern blocks every request.
+
 ## Known limitations
 
 General
@@ -123,6 +143,7 @@ Per rule
 - **IP_ADDRESS:** version strings that look like IPv4 (`1.2.3.4`) are redacted.
 - **NAME:** lowercase names (`Name: john doe`) and lowercase particles (`Ludwig van Beethoven` redacts only `Ludwig`) are missed, as are names past the fifth word. Any capitalized value after a matching label is redacted (`Company Name: Acme`).
 - **Overlaps:** when two matches partially overlap, only the longer one is redacted and the rest of the shorter one can remain.
+- **Custom rules:** regex only (no checksum or calendar validation), not checked for catastrophic backtracking, and loaded only at startup.
 
 ## Project structure
 
@@ -145,7 +166,7 @@ src/
 test/                       mirrors src/, grouped into named suites
 ```
 
-Adding an entity: add it to `ENTITY_TYPES` (`models/entity.ts`, order = overlap priority), add a rule file in `src/rules/`, register it in `src/rules/index.ts`, and add a spec. Detection and replacement code does not change.
+Adding an entity: add it to `ENTITY_TYPES` (`models/entity.ts`, order = overlap priority), add a rule file in `src/rules/`, register it in `src/rules/index.ts`, and add a spec. Detection and replacement code does not change. For regex-only entities, a [custom rules](#custom-rules) file needs no code change at all.
 
 ## Design decisions
 
@@ -161,7 +182,7 @@ Adding an entity: add it to `ENTITY_TYPES` (`models/entity.ts`, order = overlap 
 
 ## Potential improvements
 
-- Configurable rules. Needs a safe-regex check because user-supplied patterns can cause catastrophic backtracking.
+- Safety checks for custom rule patterns (a timing probe or a safe-regex check), and reloading without a restart.
 - IPv6, more national ID and phone formats, labels in other languages.
 - Per-person tokens (`[EMAIL_1]`) or reversible tokenization, by replacing `replace`.
 - Authentication, metrics and tracing, rate limiting, and a container image if this leaves an internal network.
