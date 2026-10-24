@@ -15,8 +15,15 @@ export function luhn(digits: string): boolean {
   return sum % 10 === 0;
 }
 
-/** Credit card numbers: 13-19 digits, optionally grouped, passing Luhn. */
+const passes = (s: string) => luhn(s.replace(/\D/g, ''));
+
+/** Credit card numbers: 13-19 digits, optionally grouped, passing Luhn. Falls back to the first four groups (card followed by CVV/expiry). */
 export const creditCardRule: Rule = {
   entity: 'CREDIT_CARD',
-  find: (text) => scan(text, CARD, 'CREDIT_CARD', (m) => (luhn(m[0].replace(/\D/g, '')) ? [m.index, m.index + m[0].length] : null)),
+  find: (text) =>
+    scan(text, CARD, 'CREDIT_CARD', (m) => {
+      if (passes(m[0])) return [m.index, m.index + m[0].length];
+      // Group 1 is set only for the 4-4-4-4 layout, whose first four groups are 19 characters.
+      return m[1] && passes(m[0].slice(0, 19)) ? [m.index, m.index + 19] : null;
+    }),
 };

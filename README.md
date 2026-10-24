@@ -96,6 +96,22 @@ Rules never match across line breaks, and none match inside a longer run of digi
 | `CREDIT_CARD` | 13-19 digits passing the Luhn check, as bare digits, `4-4-4-4` (plus an optional 1-3 digit tail), `4-6-5` or `4-6-4`, with one consistent space or hyphen separator | Luhn failures, other groupings, 20+ digit runs |
 | `IP_ADDRESS` | IPv4 dotted quads, octets 0-255, no leading zeros. Private and loopback addresses are included. | IPv6, `256.1.1.1`, `01.2.3.4`, `1.2.3.4.5` |
 
+## Known limitations
+
+General
+- Names, addresses, and every other PII type are out of scope. `Patient John Doe` is intentionally left unchanged.
+- Plain text only. Obfuscated values (`john [at] example [dot] com`), digits spelled out, non-ASCII digits, and values split by line breaks are not detected. JSON-escaped text must be decoded before sending.
+- Input is never Unicode-normalized, so output outside matches is byte-identical to the input.
+
+Per rule
+- **EMAIL:** an ASCII-only or Unicode address with no dotted domain is not matched. Leading punctuation such as `-john@x.com` stays outside the redacted span. If a candidate's local part has no letters or digits, scanning restarts inside it, so `..@foo.bar@x.com` becomes `..@[EMAIL]`.
+- **PHONE:** a bare 10-digit number that is NANP-valid is redacted even if it is an ID (for example `9876543210`). International numbers without `+` are missed. A `+` sequence of 8-15 digits separated by spaces is redacted even if it is not a phone number.
+- **SSN:** the hyphenated form is not range-validated, so `000-12-3456` is redacted (deliberate, favors recall). Bare 9-digit IDs and ZIP+4 without a hyphen can be false positives.
+- **DATE_OF_BIRTH:** day/month order is not interpreted; a numeric date is accepted if it is a real date in either order. Labels in other languages are not recognized.
+- **CREDIT_CARD:** no issuer (IIN) check. Valid test numbers (`4111 1111 1111 1111`) are redacted. A grouped card followed directly by a CVV or expiry (`4111 1111 1111 1111 123`) is redacted as the card only; the trailing digits remain.
+- **IP_ADDRESS:** version strings that look like IPv4 (`1.2.3.4`) are redacted.
+- **Overlaps:** when two matches partially overlap, only the longer one is redacted and the rest of the shorter one can remain.
+
 ## Project structure
 
 ```
@@ -119,3 +135,23 @@ test/                       mirrors src/, grouped into named suites
 
 Adding an entity: add it to `ENTITY_TYPES` (`models/entity.ts`, order = overlap priority), add a rule file in `src/rules/`, register it in `src/rules/index.ts`, and add a spec. Detection and replacement code does not change.
 
+## Design decisions
+
+- **Detection and replacement are independent.** `detect(text)` returns spans; `replace(text, spans)` returns text and counts. Neither imports the other and both depend only on the contracts in `models/`. `DeidentifyService` is the only place that calls both. `replace` can be tested with hand-built spans, and per-person tokens or reversible tokenization would change only `replace`.
+- **Single-pass replacement over original offsets.** Sequential `.replace()` calls would shift offsets and could re-match placeholders. Output is rebuilt once, and text outside spans is copied untouched. This also makes the service idempotent: running it twice gives the same result.
+- **Deterministic overlap resolution.** The longest span wins; ties go to the higher-priority entity (`CREDIT_CARD` > `SSN` > `DATE_OF_BIRTH` > `IP_ADDRESS` > `EMAIL` > `PHONE`). The result does not depend on rule order.
+- **Detect everything, then filter.** All rules always run, and the caller's `entities` selection is applied afterwards. If only `PHONE` is selected, a credit card number is not partially replaced with phone fragments.
+- **Validation where regex cannot decide.** Luhn for cards, calendar checks for dates, range checks for SSNs. Card grouping is limited to common layouts, because accepting any single-space grouping joined unrelated numbers (a phone and an SSN) into a fake card.
+- **Linear-time regexes.** Quantifiers are bounded, separators are parsed in only one way, and lookbehinds anchor the start of matches. Every rule is tested against 1 MB adversarial inputs with a time budget.
+- **No PII in logs or errors.** The request logger records method, path (no query), status, duration, text length and per-entity counts. Error messages are static, and library error messages are never forwarded (they can echo request content).
+- **Errors from Node's own tables.** `AppError` defaults its message to `http.STATUS_CODES`, and body-parser errors already carry the correct status. The response uses a numeric `status` rather than a string code, because reason phrases can change between Node versions.
+- **Trade-off: recall over precision.** For data going to an external AI system with no human review, a missed value is worse than an over-redaction.
+
+## Potential improvements
+
+- Context-based names (`Patient Name: ...`), reusing the label mechanism from `DATE_OF_BIRTH`.
+- Batch endpoint for many records per request.
+- Configurable rules. Needs a safe-regex check because user-supplied patterns can cause catastrophic backtracking.
+- IPv6, more national ID and phone formats, labels in other languages.
+- Per-person tokens (`[EMAIL_1]`) or reversible tokenization, by replacing `replace`.
+- Authentication, metrics and tracing, rate limiting, and a container image if this leaves an internal network.

@@ -1,5 +1,5 @@
+import { ReplaceResult } from '../models/deidentify';
 import { Span } from '../models/entity';
-import { ReplaceResult } from '../models/replacement';
 
 /**
  * Replaces each span with its `[ENTITY]` placeholder in a single pass.
