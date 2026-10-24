@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 import { body, validationResult } from 'express-validator';
 import { AppError } from '../errors/AppError';
-import { ENTITY_TYPES } from '../models/entity';
+import { ENTITIES } from '../rules';
 
 /** Rejects non-JSON requests with 415. */
 const requireJson: RequestHandler = (req, _res, next) => {
@@ -17,13 +17,21 @@ const validate: RequestHandler = (req, _res, next) => {
   next(new AppError(400, message));
 };
 
-const ENTITY_MESSAGE = `entities must only contain: ${ENTITY_TYPES.join(', ')}`;
+const ENTITY_MESSAGE = `entities must only contain: ${ENTITIES.join(', ')}`;
+
+const entities = [
+  body('entities').optional().isArray({ min: 1 }).withMessage('entities must be a non-empty array'),
+  body('entities.*').isString().withMessage(ENTITY_MESSAGE).isIn(ENTITIES).withMessage(ENTITY_MESSAGE),
+];
 
 /** Validation chain for `POST /deidentify`. */
-export const deidentifyValidator = [
+export const deidentifyValidator = [requireJson, body('text').isString().withMessage('text must be a string'), ...entities, validate];
+
+/** Validation chain for `POST /deidentify/batch`. */
+export const batchValidator = [
   requireJson,
-  body('text').isString().withMessage('text must be a string'),
-  body('entities').optional().isArray({ min: 1 }).withMessage('entities must be a non-empty array'),
-  body('entities.*').isString().withMessage(ENTITY_MESSAGE).isIn(ENTITY_TYPES).withMessage(ENTITY_MESSAGE),
+  body('texts').isArray({ min: 1 }).withMessage('texts must be a non-empty array'),
+  body('texts.*').isString().withMessage('texts must only contain strings'),
+  ...entities,
   validate,
 ];

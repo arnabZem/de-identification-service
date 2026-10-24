@@ -1,8 +1,8 @@
 import { Rule } from '../models/detection';
-import { ENTITY_TYPES, Span } from '../models/entity';
-import { RULES } from '../rules';
+import { Span } from '../models/entity';
+import { ENTITIES, RULES } from '../rules';
 
-const priority = (span: Span) => ENTITY_TYPES.indexOf(span.entity);
+const priority = (span: Span) => ENTITIES.indexOf(span.entity);
 
 /**
  * Finds sensitive spans in `text` using all rules.

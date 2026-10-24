@@ -56,12 +56,12 @@ describe('deidentifyValidator', () => {
     });
 
     test.each([
-      ['an unknown type', ['NAME']],
+      ['an unknown type', ['ADDRESS']],
       ['a lowercase type', ['email']],
       ['a number', [5]],
       ['null', [null]],
       ['a nested array', [['EMAIL']]],
-      ['one bad among valid', ['EMAIL', 'NAME']],
+      ['one bad among valid', ['EMAIL', 'ADDRESS']],
     ])('rejects a list containing %s', async (_n, entities) => {
       const res = await post({ text: 'x', entities }).expect(400);
       expect(res.body.error.message).toMatch(/^entities must only contain: /);

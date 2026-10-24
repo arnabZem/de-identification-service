@@ -64,7 +64,7 @@ describe('API', () => {
     test.each([
       ['missing text', {}],
       ['non-string text', { text: 5 }],
-      ['unknown entity', { text: 'x', entities: ['NAME'] }],
+      ['unknown entity', { text: 'x', entities: ['ADDRESS'] }],
       ['empty entities', { text: 'x', entities: [] }],
     ])('400 for %s', async (_n, body) => {
       const res = await post(body).expect(400);
@@ -86,6 +86,80 @@ describe('API', () => {
 
     test('error bodies never contain request content', async () => {
       const res = await post({ text: 5, entities: ['SECRET-VALUE'] }).expect(400);
+      expect(JSON.stringify(res.body)).not.toContain('SECRET-VALUE');
+    });
+  });
+
+  describe('NAME', () => {
+    test('redacts a labeled name and leaves unlabeled names alone', async () => {
+      const text = 'Patient Name: John Doe, DOB: 1990-05-12. Patient John Doe was seen.';
+      const res = await post({ text }).expect(200);
+      expect(res.body).toEqual({
+        deidentifiedText: 'Patient Name: [NAME], DOB: [DATE_OF_BIRTH]. Patient John Doe was seen.',
+        entitiesDetected: { NAME: 1, DATE_OF_BIRTH: 1 },
+      });
+    });
+
+    test('can be deselected', async () => {
+      const res = await post({ text: 'Name: John Doe', entities: ['EMAIL'] }).expect(200);
+      expect(res.body.deidentifiedText).toBe('Name: John Doe');
+    });
+  });
+
+  describe('POST /deidentify/batch', () => {
+    const batch = (body: object) => request(app).post('/deidentify/batch').send(body);
+
+    test('de-identifies each text independently, in order', async () => {
+      const res = await batch({ texts: ['a@x.com', 'no PII', '', 'Name: Jane Roe, call +1-415-555-0134'] }).expect(200);
+      expect(res.body).toEqual({
+        results: [
+          { deidentifiedText: '[EMAIL]', entitiesDetected: { EMAIL: 1 } },
+          { deidentifiedText: 'no PII', entitiesDetected: {} },
+          { deidentifiedText: '', entitiesDetected: {} },
+          { deidentifiedText: 'Name: [NAME], call [PHONE]', entitiesDetected: { NAME: 1, PHONE: 1 } },
+        ],
+      });
+    });
+
+    test('applies the entity selection to every text', async () => {
+      const res = await batch({ texts: ['a@x.com +1-415-555-0134', 'b@y.org'], entities: ['EMAIL'] }).expect(200);
+      expect(res.body.results.map((r: { deidentifiedText: string }) => r.deidentifiedText)).toEqual(['[EMAIL] +1-415-555-0134', '[EMAIL]']);
+    });
+
+    test('matches the single-text endpoint', async () => {
+      const text = 'Patient John Doe can be contacted at john.doe@example.com or +1-415-555-0134. DOB: 1990-05-12.';
+      const single = await post({ text }).expect(200);
+      const res = await batch({ texts: [text] }).expect(200);
+      expect(res.body.results).toEqual([single.body]);
+    });
+
+    test.each([
+      ['missing texts', {}, 'texts must be a non-empty array'],
+      ['texts not an array', { texts: 'abc' }, 'texts must be a non-empty array'],
+      ['empty texts', { texts: [] }, 'texts must be a non-empty array'],
+      ['non-string item', { texts: ['a', 5] }, 'texts must only contain strings'],
+      ['null item', { texts: [null] }, 'texts must only contain strings'],
+      ['empty entities', { texts: ['a'], entities: [] }, 'entities must be a non-empty array'],
+    ])('400 for %s', async (_n, body, message) => {
+      const res = await batch(body).expect(400);
+      expect(res.body.error).toEqual({ status: 400, message });
+    });
+
+    test('400 for an unknown entity', async () => {
+      const res = await batch({ texts: ['a'], entities: ['ADDRESS'] }).expect(400);
+      expect(res.body.error.message).toMatch(/^entities must only contain: /);
+    });
+
+    test('413 when the whole batch exceeds the body limit', async () => {
+      await batch({ texts: ['a'.repeat(600_000), 'b'.repeat(600_000)] }).expect(413);
+    });
+
+    test('415 for non-JSON content', async () => {
+      await request(app).post('/deidentify/batch').set('Content-Type', 'text/plain').send('hi').expect(415);
+    });
+
+    test('error bodies never contain request content', async () => {
+      const res = await batch({ texts: ['SECRET-VALUE', 5] }).expect(400);
       expect(JSON.stringify(res.body)).not.toContain('SECRET-VALUE');
     });
   });
