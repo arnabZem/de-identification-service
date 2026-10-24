@@ -11,6 +11,26 @@ describe('API', () => {
       expect(res.body).toEqual({ deidentifiedText: 'Contact [EMAIL] today', entitiesDetected: { EMAIL: 1 } });
     });
 
+    test('de-identifies the problem-statement example', async () => {
+      const res = await post({ text: 'Contact john.doe@example.com at +1-415-555-0134', entities: ['EMAIL', 'PHONE'] }).expect(200);
+      expect(res.body).toEqual({ deidentifiedText: 'Contact [EMAIL] at [PHONE]', entitiesDetected: { EMAIL: 1, PHONE: 1 } });
+    });
+
+    test('de-identifies all six entity types by default', async () => {
+      const text = 'Patient John Doe can be contacted at john.doe@example.com or +1-415-555-0134. DOB: 1990-05-12. SSN 123-45-6789, card 4111 1111 1111 1111, host 10.0.0.1.';
+      const res = await post({ text }).expect(200);
+      expect(res.body).toEqual({
+        deidentifiedText: 'Patient John Doe can be contacted at [EMAIL] or [PHONE]. DOB: [DATE_OF_BIRTH]. SSN [SSN], card [CREDIT_CARD], host [IP_ADDRESS].',
+        entitiesDetected: { EMAIL: 1, PHONE: 1, DATE_OF_BIRTH: 1, SSN: 1, CREDIT_CARD: 1, IP_ADDRESS: 1 },
+      });
+    });
+
+    test('does not redact ordinary numbers', async () => {
+      const text = 'Order 1700000000 shipped 2024-10-23, total 12,345.67, v1.2.3';
+      const res = await post({ text }).expect(200);
+      expect(res.body).toEqual({ deidentifiedText: text, entitiesDetected: {} });
+    });
+
     test('honors entity selection', async () => {
       const res = await post({ text: 'a@x.com', entities: ['PHONE'] }).expect(200);
       expect(res.body).toEqual({ deidentifiedText: 'a@x.com', entitiesDetected: {} });

@@ -64,9 +64,53 @@ describe('detect', () => {
     });
   });
 
-  describe('default registry', () => {
-    test('detects emails with the built-in rules', () => {
-      expect(detect('Mail a@b.co')).toEqual<Span[]>([{ start: 5, end: 11, entity: 'EMAIL' }]);
+  describe('default registry: cross-rule collisions', () => {
+    const entities = (text: string) => detect(text).map((s) => `${s.entity}:${text.slice(s.start, s.end)}`);
+
+    test('every entity type is detected with the built-in rules', () => {
+      const text = 'a@b.co 123-45-6789 1.2.3.4 4111111111111111 DOB: 1990-05-12 +1-415-555-0134';
+      expect(detect(text).map((s) => s.entity)).toEqual(['EMAIL', 'SSN', 'IP_ADDRESS', 'CREDIT_CARD', 'DATE_OF_BIRTH', 'PHONE']);
+    });
+
+    test('a card number is one CREDIT_CARD, not phone fragments', () => {
+      expect(entities('Card 4111 1111 1111 1111')).toEqual(['CREDIT_CARD:4111 1111 1111 1111']);
+      expect(entities('Card 5500000000000004')).toEqual(['CREDIT_CARD:5500000000000004']);
+    });
+
+    test('a number failing Luhn is not a card, and not a phone either', () => {
+      expect(entities('4111 1111 1111 1112')).toEqual([]);
+    });
+
+    test('a bare 9-digit SSN is not a phone', () => {
+      expect(entities('SSN 123456789')).toEqual(['SSN:123456789']);
+    });
+
+    test('a hyphenated SSN is not a phone', () => {
+      expect(entities('SSN 234-56-7890')).toEqual(['SSN:234-56-7890']);
+    });
+
+    test('a labelled date is a DOB only; the label stays outside the span', () => {
+      expect(entities('DOB: 12/05/1990')).toEqual(['DATE_OF_BIRTH:12/05/1990']);
+    });
+
+    test('a phone-shaped number inside a DOB-labelled value does not double-redact', () => {
+      expect(entities('DOB: 1990-05-12 call 415-555-0134')).toEqual(['DATE_OF_BIRTH:1990-05-12', 'PHONE:415-555-0134']);
+    });
+
+    test('an email wins over the digits in its local part', () => {
+      expect(entities('415-555-0134@example.com')).toEqual(['EMAIL:415-555-0134@example.com']);
+    });
+
+    test('an IP is not mistaken for a date or phone', () => {
+      expect(entities('host 192.168.100.200')).toEqual(['IP_ADDRESS:192.168.100.200']);
+    });
+
+    test('the same phone via NANP and + rules yields one span', () => {
+      expect(entities('+1-415-555-0134')).toEqual(['PHONE:+1-415-555-0134']);
+    });
+
+    test('plain numbers and dates are left alone', () => {
+      expect(entities('Order 1700000000 on 2024-10-23 total 12,345.67 v1.2.3 at 10:30')).toEqual([]);
     });
   });
 });
