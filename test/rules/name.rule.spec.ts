@@ -18,6 +18,7 @@ describe('nameRule', () => {
       ['Unicode', 'Patient: José Álvarez-Núñez', 'José Álvarez-Núñez'],
       ['space before colon', 'Name : John Doe', 'John Doe'],
       ['tab after colon', 'Name:\tJohn Doe', 'John Doe'],
+      ['label glued to a preceding digit', '1name: Bob', 'Bob'],
     ])('%s', (_n, text, name) => {
       expect(found(nameRule, text)).toEqual([name]);
     });
@@ -57,7 +58,6 @@ describe('nameRule', () => {
       ['empty value', 'Name: '],
       ['label inside a word', 'username: Bob'],
       ['label inside a word (filename)', 'filename: Report'],
-      ['label preceded by a digit', '1name: Bob'],
       ['value that is the next label', 'Name: DOB: 1990-05-12'],
     ])('%s', (_n, text) => {
       expect(found(nameRule, text)).toEqual([]);
@@ -77,5 +77,15 @@ describe('nameRule', () => {
       nameRule.find(text);
       expect(Date.now() - start).toBeLessThan(BUDGET_MS);
     });
+  });
+});
+
+describe('nameRule: Unicode separators', () => {
+  test.each([
+    ['no-break space between words', 'Name: Jane\u00a0Roe', 'Jane\u00a0Roe'],
+    ['no-break space after colon', 'Name:\u00a0Jane Roe', 'Jane Roe'],
+    ['no-break space in label', 'Patient\u00a0Name: Jane Roe', 'Jane Roe'],
+  ])('%s', (_n, text, name) => {
+    expect(found(nameRule, text)).toEqual([name]);
   });
 });

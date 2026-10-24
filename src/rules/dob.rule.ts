@@ -1,17 +1,19 @@
 import { Rule } from '../models/detection';
-import { scan } from './scan';
+import { DASHES, SPACES, scan } from './scan';
 
+const W = `[\\t${SPACES}]`; // one space-like character
+const D = `[${DASHES}/.]`; // one numeric date separator
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const MONTH = '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\.?';
 const DATE = [
-  '\\d{4}[-/.]\\d{1,2}[-/.]\\d{1,2}', // 1990-05-12
-  '\\d{1,2}[-/.]\\d{1,2}[-/.]\\d{4}', // 05/12/1990 or 12/05/1990
-  `${MONTH}[ \\t]+\\d{1,2},?[ \\t]+\\d{4}`, // May 12, 1990
-  `\\d{1,2}[ \\t]+${MONTH},?[ \\t]+\\d{4}`, // 12 May 1990
+  `\\d{4}${D}\\d{1,2}${D}\\d{1,2}`, // 1990-05-12
+  `\\d{1,2}${D}\\d{1,2}${D}\\d{4}`, // 05/12/1990 or 12/05/1990
+  `${MONTH}${W}+\\d{1,2},?${W}+\\d{4}`, // May 12, 1990
+  `\\d{1,2}${W}+${MONTH},?${W}+\\d{4}`, // 12 May 1990
 ].join('|');
-const LABEL = '(?:D\\.?O\\.?B\\.?|date[ \\t]+of[ \\t]+birth|birth[ \\t]?date)';
-// Label, optional ":" / "-" / "is", then the date (captured as `date`). Spacing is parsed one way only.
-const DOB = new RegExp(`(?<![\\p{L}\\p{N}])${LABEL}[ \\t]*(?:(?::|-|is)[ \\t]*)?(?<date>${DATE})(?!\\d)`, 'giud');
+const LABEL = `(?:D\\.?O\\.?B\\.?|date${W}+of${W}+birth|birth${W}?date)`;
+// Label (not inside a word), optional ":" / dash / "is", then the date (captured as `date`). Spacing is parsed one way only.
+const DOB = new RegExp(`(?<!\\p{L})${LABEL}${W}*(?:(?::|[${DASHES}]|is)${W}*)?(?<date>${DATE})(?!\\d)`, 'giud');
 
 const daysIn = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).getUTCDate();
 const isValid = (year: number, month: number, day: number) =>

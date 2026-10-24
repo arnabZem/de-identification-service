@@ -1,5 +1,10 @@
 import { EntityType, Span } from '../models/entity';
 
+/** Character-class contents for separators pasted from documents: space plus no-break, figure and narrow no-break spaces. */
+export const SPACES = ' \\u00a0\\u2007\\u202f';
+/** Character-class contents for hyphen plus Unicode hyphens, dashes and minus sign. */
+export const DASHES = '\\-\\u2010-\\u2015\\u2212';
+
 /**
  * Runs a global `pattern` over `text` and returns one span per accepted match.
  * `accept` may narrow the span (return `[start, end]`) or reject the match (return `null`).

@@ -1,12 +1,13 @@
 const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
-/** Positive integer from the environment, or `fallback` when unset. Throws on invalid values. */
+/** Positive decimal integer from the environment, or `fallback` when unset or empty. Throws on invalid values. */
 function int(name: string, fallback: number, max = Number.MAX_SAFE_INTEGER): number {
   const raw = process.env[name];
-  if (raw === undefined) return fallback;
+  if (!raw) return fallback;
   const value = Number(raw);
-  if (!Number.isInteger(value) || value < 1 || value > max) throw new Error(`Invalid ${name}`);
+  // Digits only: Number() alone also accepts ' 80', '1e3', '0x10' and '80.0'.
+  if (!/^\d+$/.test(raw) || value < 1 || value > max) throw new Error(`Invalid ${name}`);
   return value;
 }
 

@@ -35,6 +35,9 @@ describe('ssnRule', () => {
       ['ten digits', '1234567890'],
       ['wrong hyphen grouping', '1234-56-789'],
       ['double separators', '123--45--6789'],
+      ['space then bare', '123 456789'],
+      ['bare then space', '12345 6789'],
+      ['mixed dashes', '123-45\u20136789'],
       ['letters inside', '123-4a-6789'],
     ])('%s: %s', (_n, text) => {
       expect(found(ssnRule, text)).toEqual([]);
@@ -71,5 +74,20 @@ describe('ssnRule', () => {
     test('offsets stay correct after astral characters', () => {
       expect(found(ssnRule, '😀 123-45-6789 😀')).toEqual(['123-45-6789']);
     });
+  });
+});
+
+describe('ssnRule: Unicode separators', () => {
+  test.each([
+    ['en dash', '123\u201345\u20136789'],
+    ['non-breaking hyphen', '123\u201145\u20116789'],
+    ['minus sign', '123\u221245\u22126789'],
+    ['no-break space (validated form)', '123\u00a045\u00a06789'],
+  ])('%s', (_n, text) => {
+    expect(found(ssnRule, `SSN ${text}`)).toEqual([text]);
+  });
+
+  test('no-break space form is still range-validated', () => {
+    expect(found(ssnRule, '000\u00a012\u00a03456')).toEqual([]);
   });
 });

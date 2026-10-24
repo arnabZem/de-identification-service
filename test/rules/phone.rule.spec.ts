@@ -91,3 +91,16 @@ describe('phoneRule', () => {
     });
   });
 });
+
+describe('phoneRule: Unicode separators', () => {
+  test.each([
+    ['no-break spaces', '415\u00a0555\u00a00134'],
+    ['en dashes', '415\u2013555\u20130134'],
+    ['non-breaking hyphens', '415\u2011555\u20110134'],
+    ['narrow no-break space after area code', '(415)\u202f555-0134'],
+    ['international with no-break spaces', '+44\u00a020\u00a07946\u00a00958'],
+    ['international with figure dashes', '+1\u2012415\u2012555\u20120134'],
+  ])('%s', (_n, text) => {
+    expect(found(phoneRule, `call ${text} now`)).toEqual([text]);
+  });
+});

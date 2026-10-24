@@ -1,8 +1,9 @@
 import { Rule } from '../models/detection';
-import { scan } from './scan';
+import { DASHES, SPACES, scan } from './scan';
 
+const S = `[${SPACES}${DASHES}]`;
 // Common layouts only, with one consistent separator: bare 13-19 digits, 4-4-4-4(-1..3), 4-6-5 (Amex), 4-6-4. Luhn-checked afterwards.
-const CARD = /(?<!\d)(?:\d{13,19}|\d{4}([ -])\d{4}\1\d{4}\1\d{4}(?:\1\d{1,3})?|\d{4}([ -])\d{6}\2\d{4,5})(?!\d)/g;
+const CARD = new RegExp(`(?<!\\d)(?:\\d{13,19}|\\d{4}(${S})\\d{4}\\1\\d{4}\\1\\d{4}(?:\\1\\d{1,3})?|\\d{4}(${S})\\d{6}\\2\\d{4,5})(?!\\d)`, 'g');
 
 /** Luhn checksum over a digit string. */
 export function luhn(digits: string): boolean {

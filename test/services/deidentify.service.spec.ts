@@ -4,6 +4,19 @@ import { DeidentifyService } from '../../src/services/deidentify.service';
 describe('DeidentifyService', () => {
   const service = new DeidentifyService();
 
+  describe('partial overlaps', () => {
+    test.each([
+      ['phone then card', 'Call +1 415 555 0134 4111 1111 1111 1111', 'Call [PHONE] [CREDIT_CARD]'],
+      ['phone then SSN', '+91 98765 43210 123-45-6789', '[PHONE]-[SSN]'],
+      ['phone then IP', 'src +44 20 7946 0958 10.0.0.1 dst', 'src [PHONE].[IP_ADDRESS] dst'],
+      ['IP then phone', 'ip 10.0.0.1 415 555 0134', 'ip [IP_ADDRESS].[PHONE]'],
+      ['name then email', 'Patient Name: Jane Roe Jane.Roe@x.com', 'Patient Name: [NAME] [EMAIL]'],
+      ['name swallowing email local part', 'Name: John Smith John@smith.com', 'Name: [NAME]@[EMAIL]'],
+    ])('no fragment of the losing entity remains: %s', (_n, input, expected) => {
+      expect(service.run(input).text).toBe(expected);
+    });
+  });
+
   describe('de-identification', () => {
     test('replaces an email and reports the count', () => {
       expect(service.run('Contact john.doe@example.com today')).toEqual({
