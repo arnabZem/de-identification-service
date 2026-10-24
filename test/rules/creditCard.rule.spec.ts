@@ -70,6 +70,20 @@ describe('creditCardRule', () => {
     test('does not match across line breaks', () => {
       expect(found(creditCardRule, '4111 1111\n1111 1111')).toEqual([]);
     });
+
+    test.each([
+      ['CVV after spaces', '4111 1111 1111 1111 123', '4111 1111 1111 1111'],
+      ['expiry after spaces', 'Card 4111 1111 1111 1111 12/25', '4111 1111 1111 1111'],
+      ['CVV after hyphens', '4111-1111-1111-1111-123', '4111-1111-1111-1111'],
+      ['CVV after comma', '4111 1111 1111 1111, CVV 123', '4111 1111 1111 1111'],
+      ['four-digit tail', '4111 1111 1111 1111 1234', '4111 1111 1111 1111'],
+    ])('card followed by extra digits is still found: %s', (_n, text, expected) => {
+      expect(found(creditCardRule, text)).toEqual([expected]);
+    });
+
+    test('a Luhn-failing prefix is still rejected when followed by digits', () => {
+      expect(found(creditCardRule, '4111 1111 1111 1112 123')).toEqual([]);
+    });
   });
 
   describe('multiple occurrences', () => {

@@ -1,5 +1,5 @@
+import { ReplaceResult } from '../models/deidentify';
 import { ENTITY_TYPES, EntityType } from '../models/entity';
-import { ReplaceResult } from '../models/replacement';
 import { detect } from '../utils/detect';
 import { replace } from '../utils/replace';
 

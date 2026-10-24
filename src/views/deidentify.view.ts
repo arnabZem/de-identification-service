@@ -1,5 +1,4 @@
-import { DeidentifyResponse } from '../models/deidentify';
-import { ReplaceResult } from '../models/replacement';
+import { DeidentifyResponse, ReplaceResult } from '../models/deidentify';
 
 export class DeidentifyView {
   /** Shapes the API response from a replacement result. */
